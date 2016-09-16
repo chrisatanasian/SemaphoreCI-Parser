@@ -53,36 +53,50 @@ def print_totals(thread_outputs)
   puts "failures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}"
 end
 
-def download_complete_logs(semaphore_log_file)
-  combined_output = File.open("Thread_output_combined", "w+")
+def download_complete_logs(semaphore_log_file, combined_output_file_name)
+  combined_output = File.open("#{combined_output_file_name}", "w+")
 
   semaphore_log_file.css(".panel.panel-secondary-pastel").each do |thread|
     thread_num    = thread.css(".c-results_list_command.ng-binding").text.scan(/\d+/)[0].to_i
     download_link = thread.css(".text-info").css("a")[0].attributes["href"].value if thread.css(".text-info").css("a")[0].respond_to?(:attributes)
     
     combined_output.write("THREAD #{thread_num}:\n\n")
-    if download_link == nil
-      # If there is no download log link
-      combined_output.write(thread.text)
-    else
-      # Download the full log from the link
-      open(download_link) {|file|
+    if download_link
+      open(download_link) do |file|
         while buff = file.read(4096)
           combined_output.write(buff)
         end
-      }
+      end
+    else
+      combined_output.write(thread.text)
     end
     combined_output.write("\n")
   end
   combined_output.close
 end
 
-semaphore_log_file = open_file(ARGV[0])
+def find_common_output_lines(combined_output_file_name, common_lines_file_name)
+  common_lines_command = "cat #{combined_output_file_name} | grep -v \"^\s*$\" | sort | uniq -c | sort -nr > #{common_lines_file_name}"
+  system(common_lines_command)
+end
 
-print_build_information(semaphore_log_file)
-puts ""
+if __FILE__ == $0
+  combined_output_file = "Thread_output_combined.txt"
+  common_lines_file = "Thread_output_common_lines.txt"
 
-thread_outputs = semaphore_thread_outputs(semaphore_log_file)
-print_totals(thread_outputs)
+  semaphore_log_file = open_file(ARGV[0])
 
-download_complete_logs(semaphore_log_file)
+  print_build_information(semaphore_log_file)
+  puts ""
+
+  thread_outputs = semaphore_thread_outputs(semaphore_log_file)
+  print_totals(thread_outputs)
+
+  puts "Downloading and compiling all output to: #{combined_output_file} ..."
+  download_complete_logs(semaphore_log_file, combined_output_file)
+
+  puts "Finding the common lines in the compiled output: #{common_lines_file} ..."
+  find_common_output_lines(combined_output_file, common_lines_file)
+
+  puts "Finished."
+end
