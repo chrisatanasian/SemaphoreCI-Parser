@@ -1,5 +1,6 @@
 require 'nokogiri'
 require 'pry'
+require 'open-uri'
 
 def open_file(filename)
   Nokogiri::HTML(open(filename))
@@ -52,6 +53,30 @@ def print_totals(thread_outputs)
   puts "failures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}"
 end
 
+def download_complete_logs(semaphore_log_file)
+  combined_output = File.open("Thread_output_combined", "w+")
+
+  semaphore_log_file.css(".panel.panel-secondary-pastel").each do |thread|
+    thread_num    = thread.css(".c-results_list_command.ng-binding").text.scan(/\d+/)[0].to_i
+    download_link = thread.css(".text-info").css("a")[0].attributes["href"].value if thread.css(".text-info").css("a")[0].respond_to?(:attributes)
+    
+    combined_output.write("THREAD #{thread_num}:\n\n")
+    if download_link == nil
+      # If there is no download log link
+      combined_output.write(thread.text)
+    else
+      # Download the full log from the link
+      open(download_link) {|file|
+        while buff = file.read(4096)
+          combined_output.write(buff)
+        end
+      }
+    end
+    combined_output.write("\n")
+  end
+  combined_output.close
+end
+
 semaphore_log_file = open_file(ARGV[0])
 
 print_build_information(semaphore_log_file)
@@ -59,3 +84,5 @@ puts ""
 
 thread_outputs = semaphore_thread_outputs(semaphore_log_file)
 print_totals(thread_outputs)
+
+download_complete_logs(semaphore_log_file)
