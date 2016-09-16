@@ -23,9 +23,7 @@ def print_build_information(semaphore_log_file)
   branch_name  = semaphore_log_file.css(".c-build_branch").css("b").text
   commit_sha   = semaphore_log_file.css(".u-hover-undelrine").text
 
-  puts "build #{build_number} for #{project_name}"
-  puts "branch: #{branch_name}"
-  puts "commit sha: #{commit_sha}"
+  "build #{build_number} for #{project_name}" + "\nbranch: #{branch_name}" + "\ncommit sha: #{commit_sha}\n\n"
 end
 
 def print_totals(thread_outputs)
@@ -53,26 +51,44 @@ def print_totals(thread_outputs)
   puts "failures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}"
 end
 
-def download_complete_logs(semaphore_log_file, combined_output_file_name)
+def download_complete_logs(semaphore_log_file, combined_output_file_name, output_stats_file_name)
   combined_output = File.open("#{combined_output_file_name}", "w+")
+  output_stats     = File.open("#{output_stats_file_name}", "w+")
+
+  output_stats.write(print_build_information(semaphore_log_file))
 
   semaphore_log_file.css(".panel.panel-secondary-pastel").each do |thread|
     thread_num    = thread.css(".c-results_list_command.ng-binding").text.scan(/\d+/)[0].to_i
     download_link = thread.css(".text-info").css("a")[0].attributes["href"].value if thread.css(".text-info").css("a")[0].respond_to?(:attributes)
     
+    output_stats.write(thread_num.to_s + ": ")
     combined_output.write("THREAD #{thread_num}:\n\n")
+
     if download_link
       open(download_link) do |file|
         while buff = file.read(4096)
           combined_output.write(buff)
         end
+
+        file.rewind
+
+        pre_string = ""
+        file.each_line do |line|
+          if line =~ /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+            output_stats.write(pre_string + line)
+            pre_string = "   " if pre_string.empty?
+          end
+        end
       end
     else
       combined_output.write(thread.text)
+      output_stats.write(thread.text.scan(/\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/).join("\n   ") + "\n")
     end
     combined_output.write("\n")
   end
+
   combined_output.close
+  output_stats.close
 end
 
 def find_common_output_lines(combined_output_file_name, common_lines_file_name)
@@ -82,6 +98,7 @@ end
 
 if __FILE__ == $0
   combined_output_file = "Thread_output_combined.txt"
+  output_stats = "Thread_output_stats.txt"
   common_lines_file = "Thread_output_common_lines.txt"
 
   semaphore_log_file = open_file(ARGV[0])
@@ -93,7 +110,7 @@ if __FILE__ == $0
   print_totals(thread_outputs)
 
   puts "Downloading and compiling all output to: #{combined_output_file} ..."
-  download_complete_logs(semaphore_log_file, combined_output_file)
+  download_complete_logs(semaphore_log_file, combined_output_file, output_stats)
 
   puts "Finding the common lines in the compiled output: #{common_lines_file} ..."
   find_common_output_lines(combined_output_file, common_lines_file)
