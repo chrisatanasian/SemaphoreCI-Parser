@@ -17,6 +17,14 @@ end
 
 def print_build_information(semaphore_log_file)
   build_number = semaphore_log_file.css(".c-build-meta_list_status.btn-group").text.scan(/\d+/).first
+  project_name = semaphore_log_file.css(".list-inline.neutralize.c-project-headline_list").css("b").text
+
+  branch_name  = semaphore_log_file.css(".c-build_branch").css("b").text
+  commit_sha   = semaphore_log_file.css(".u-hover-undelrine").text
+
+  puts "build #{build_number} for #{project_name}"
+  puts "branch: #{branch_name}"
+  puts "commit sha: #{commit_sha}"
 end
 
 def print_totals(thread_outputs)
@@ -44,6 +52,7 @@ end
 semaphore_log_file = open_file("semaphore.html")
 
 print_build_information(semaphore_log_file)
+puts ""
 
-thread_outputs     = semaphore_thread_outputs(semaphore_log_file)
+thread_outputs = semaphore_thread_outputs(semaphore_log_file)
 print_totals(thread_outputs)
