@@ -6,24 +6,16 @@ def open_file(filename)
   Nokogiri::HTML(open(filename))
 end
 
-def semaphore_thread_outputs(semaphore_log_file)
-  semaphore_log_file.css(".c-results_list_pre.ng-isolate-scope").map do |thread|
-    thread.text.scan(/\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/)
-  end.select.with_index { |_, i| i.odd? }
-end
-
-def thread_line(thread_number, thread_output)
-  "#{thread_number}: #{thread_output.empty? ? "Passed" : thread_output.join("\n    ")}"
-end
-
-def print_build_information(semaphore_log_file)
+def build_information(semaphore_log_file)
   build_number = semaphore_log_file.css(".c-build-meta_list_status.btn-group").text.scan(/\d+/).first
   project_name = semaphore_log_file.css(".list-inline.neutralize.c-project-headline_list").css("b").text
 
   branch_name  = semaphore_log_file.css(".c-build_branch").css("b").text
   commit_sha   = semaphore_log_file.css(".u-hover-undelrine").text
 
-  "build #{build_number} for #{project_name}" + "\nbranch: #{branch_name}" + "\ncommit sha: #{commit_sha}\n\n"
+  ["build #{build_number} for #{project_name}",
+   "branch: #{branch_name}",
+   "commit sha: #{commit_sha}\n\n"].join("\n")
 end
 
 def print_totals(thread_outputs)
@@ -51,30 +43,29 @@ def print_totals(thread_outputs)
   puts "failures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}"
 end
 
-def download_complete_logs(semaphore_log_file, combined_output_file_name, output_stats_file_name)
-  combined_output = File.open("#{combined_output_file_name}", "w+")
-  output_stats     = File.open("#{output_stats_file_name}", "w+")
+def generate_combined_output_and_output_stats(semaphore_log_file, combined_output_filename, output_stats_filename)
+  combined_output = File.open("#{combined_output_filename}", "w+")
+  output_stats    = File.open("#{output_stats_filename}", "w+")
 
-  output_stats.write(print_build_information(semaphore_log_file))
+  thread_stats_regex = /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+
+  output_stats.write(build_information(semaphore_log_file))
 
   semaphore_log_file.css(".panel.panel-secondary-pastel").each do |thread|
-    thread_num    = thread.css(".c-results_list_command.ng-binding").text.scan(/\d+/)[0].to_i
-    download_link = thread.css(".text-info").css("a")[0].attributes["href"].value if thread.css(".text-info").css("a")[0].respond_to?(:attributes)
-    
-    output_stats.write(thread_num.to_s + ": ")
+    thread_num    = thread.css(".c-results_list_command.ng-binding").text.scan(/\d+/).first
+    download_node = thread.css(".text-info").css("a").first
+    download_link = download_node.attributes["href"].value if download_node.respond_to?(:attributes)
+
+    output_stats.write("#{thread_num}: ")
     combined_output.write("THREAD #{thread_num}:\n\n")
 
     if download_link
       open(download_link) do |file|
-        while buff = file.read(4096)
-          combined_output.write(buff)
-        end
-
-        file.rewind
-
         pre_string = ""
         file.each_line do |line|
-          if line =~ /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+          combined_output.write(line)
+
+          if line =~ thread_stats_regex
             output_stats.write(pre_string + line)
             pre_string = "   " if pre_string.empty?
           end
@@ -82,8 +73,9 @@ def download_complete_logs(semaphore_log_file, combined_output_file_name, output
       end
     else
       combined_output.write(thread.text)
-      output_stats.write(thread.text.scan(/\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/).join("\n   ") + "\n")
+      output_stats.write(thread.text.scan(thread_stats_regex).join("\n   ") + "\n")
     end
+
     combined_output.write("\n")
   end
 
@@ -91,29 +83,23 @@ def download_complete_logs(semaphore_log_file, combined_output_file_name, output
   output_stats.close
 end
 
-def find_common_output_lines(combined_output_file_name, common_lines_file_name)
-  common_lines_command = "cat #{combined_output_file_name} | grep -v \"^\s*$\" | sort | uniq -c | sort -nr > #{common_lines_file_name}"
+def find_common_output_lines(combined_output_filename, common_lines_filename)
+  common_lines_command = "cat #{combined_output_filename} | grep -v \"^\s*$\" | sort | uniq -c | sort -nr > #{common_lines_filename}"
   system(common_lines_command)
 end
 
 if __FILE__ == $0
-  combined_output_file = "Thread_output_combined.txt"
-  output_stats = "Thread_output_stats.txt"
-  common_lines_file = "Thread_output_common_lines.txt"
+  combined_output_filename = "thread_output_combined.txt"
+  common_lines_filename    = "thread_output_common_lines.txt"
+  output_stats_filename    = "thread_output_stats.txt"
 
   semaphore_log_file = open_file(ARGV[0])
 
-  print_build_information(semaphore_log_file)
-  puts ""
+  puts "Downloading and compiling all output to: #{combined_output_filename} ..."
+  generate_combined_output_and_output_stats(semaphore_log_file, combined_output_filename, output_stats_filename)
 
-  thread_outputs = semaphore_thread_outputs(semaphore_log_file)
-  print_totals(thread_outputs)
+  puts "Outputting the common lines in the compiled output to: #{common_lines_filename} ..."
+  find_common_output_lines(combined_output_filename, common_lines_filename)
 
-  puts "Downloading and compiling all output to: #{combined_output_file} ..."
-  download_complete_logs(semaphore_log_file, combined_output_file, output_stats)
-
-  puts "Finding the common lines in the compiled output: #{common_lines_file} ..."
-  find_common_output_lines(combined_output_file, common_lines_file)
-
-  puts "Finished."
+  puts "Outputted all statistics to #{output_stats_filename}"
 end
