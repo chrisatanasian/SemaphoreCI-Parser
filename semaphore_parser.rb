@@ -49,7 +49,7 @@ def print_totals(thread_outputs)
   end
 end
 
-semaphore_log_file = open_file("semaphore.html")
+semaphore_log_file = open_file(ARGV[0])
 
 print_build_information(semaphore_log_file)
 puts ""
