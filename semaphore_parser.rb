@@ -47,6 +47,9 @@ def print_totals(thread_outputs)
   totals.each do |key, value|
     puts "#{value} #{key}"
   end
+
+  puts ""
+  puts "failures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}"
 end
 
 semaphore_log_file = open_file(ARGV[0])
