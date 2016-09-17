@@ -9,7 +9,6 @@ end
 def build_information(semaphore_log_file)
   build_number = semaphore_log_file.css(".c-build-meta_list_status.btn-group").text.scan(/\d+/).first
   project_name = semaphore_log_file.css(".list-inline.neutralize.c-project-headline_list").css("b").text
-
   branch_name  = semaphore_log_file.css(".c-build_branch").css("b").text
   commit_sha   = semaphore_log_file.css(".u-hover-undelrine").text
 
@@ -18,36 +17,53 @@ def build_information(semaphore_log_file)
    "commit sha: #{commit_sha}\n\n"].join("\n")
 end
 
-def print_totals(thread_outputs)
-  totals = { tests: 0, assertions: 0, failures: 0, errors: 0, skips: 0 }
+def add_to_totals(totals, thread_output_line)
+  line_totals = thread_output_line.scan(/\d+/)
+  totals.each_with_index { |(key, _), i| totals[key] += line_totals[i].to_i }
+  totals
+end
 
-  thread_outputs.each_with_index do |thread_output, i|
-    thread_output.map do |single_thread_output|
-      single_thread_output_totals = single_thread_output.scan(/\d+/)
+def write_totals_to_output_stats(totals, output_stats)
+  output_stats.write("\n")
+  totals.each { |key, value| output_stats.write("#{value} #{key}\n") }
+  output_stats.write("\nfailures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}")
+end
 
-      totals.each_with_index do |(key, _), i|
-        totals[key] += single_thread_output_totals[i].to_i
+def thread_stats_regex
+  /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+end
+
+def download_thread_and_add_to_outputs(download_link, totals, combined_output, output_stats)
+  open(download_link) do |file|
+    pre_string = ""
+
+    file.each_line do |line|
+      combined_output.write(line)
+
+      if line =~ thread_stats_regex
+        totals = add_to_totals(totals, line)
+
+        output_stats.write(pre_string + line)
+        pre_string = "   " if pre_string.empty?
       end
     end
-
-    puts thread_line(i + 1, thread_output)
   end
 
-  puts ""
+  totals
+end
 
-  totals.each do |key, value|
-    puts "#{value} #{key}"
-  end
+def add_thread_to_outputs(thread_text, totals, combined_output, output_stats)
+  combined_output.write(thread_text)
+  output_stats.write(thread_text.scan(thread_stats_regex).join("\n   ") + "\n")
+  thread_text.scan(thread_stats_regex).map { |thread_output_line| totals = add_to_totals(totals, thread_output_line) }
 
-  puts ""
-  puts "failures + errors + skips: #{totals[:failures] + totals[:errors] + totals[:skips]}"
+  totals
 end
 
 def generate_combined_output_and_output_stats(semaphore_log_file, combined_output_filename, output_stats_filename)
   combined_output = File.open("#{combined_output_filename}", "w+")
   output_stats    = File.open("#{output_stats_filename}", "w+")
-
-  thread_stats_regex = /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+  totals          = { tests: 0, assertions: 0, failures: 0, errors: 0, skips: 0 }
 
   output_stats.write(build_information(semaphore_log_file))
 
@@ -59,26 +75,16 @@ def generate_combined_output_and_output_stats(semaphore_log_file, combined_outpu
     output_stats.write("#{thread_num}: ")
     combined_output.write("THREAD #{thread_num}:\n\n")
 
-    if download_link
-      open(download_link) do |file|
-        pre_string = ""
-        file.each_line do |line|
-          combined_output.write(line)
-
-          if line =~ thread_stats_regex
-            output_stats.write(pre_string + line)
-            pre_string = "   " if pre_string.empty?
-          end
-        end
-      end
+    totals = if download_link
+      download_thread_and_add_to_outputs(download_link, totals, combined_output, output_stats)
     else
-      combined_output.write(thread.text)
-      output_stats.write(thread.text.scan(thread_stats_regex).join("\n   ") + "\n")
+      add_thread_to_outputs(thread.text, totals, combined_output, output_stats)
     end
 
     combined_output.write("\n")
   end
 
+  write_totals_to_output_stats(totals, output_stats)
   combined_output.close
   output_stats.close
 end
