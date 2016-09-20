@@ -95,9 +95,12 @@ def find_common_output_lines(combined_output_filename, common_lines_filename)
 end
 
 if __FILE__ == $0
-  combined_output_filename = "thread_output_combined.txt"
-  common_lines_filename    = "thread_output_common_lines.txt"
-  output_stats_filename    = "thread_output_stats.txt"
+  time        = Time.now
+  date_string = "#{time.month}_#{time.day}"
+
+  combined_output_filename = "thread_output_combined_#{date_string}.txt"
+  common_lines_filename    = "thread_output_common_lines_#{date_string}.txt"
+  output_stats_filename    = "thread_output_stats_#{date_string}.txt"
 
   semaphore_log_file = open_file(ARGV[0])
 
