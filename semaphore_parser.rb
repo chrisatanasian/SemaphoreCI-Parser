@@ -16,9 +16,10 @@ class SemaphoreParser
     @totals = { tests: 0, assertions: 0, failures: 0, errors: 0, skips: 0 }
 
     build = "build_#{@build_number}"
-    @combined_output_filename  = "#{folder_name}#{build}_thread_output_combined.txt"
-    @stats_filename            = "#{folder_name}#{build}_stats.txt"
-    @common_lines_filename     = "#{folder_name}#{build}_thread_output_common_lines.txt"
+    @stats_filename           = "#{folder_name}#{build}_stats.txt"
+    @combined_output_filename = "#{folder_name}#{build}_thread_output_combined.txt"
+    @common_lines_filename    = "#{folder_name}#{build}_thread_output_common_lines.txt"
+    @test_numbers_filename    = "#{folder_name}#{build}_thread_output_test_numbers.txt"
   end
 
   def parse
@@ -32,6 +33,9 @@ class SemaphoreParser
 
     puts "Outputting the common lines in the compiled output to: #{@common_lines_filename} ..."
     generate_common_output_lines
+
+    puts "Outputting the test numbers for errors and failures: #{@test_numbers_filename} ..."
+    generate_test_numbers
 
     puts "Outputted all statistics to #{@stats_filename}"
   end
@@ -111,6 +115,11 @@ class SemaphoreParser
 
   def generate_common_output_lines
     common_lines_command = "cat #{@combined_output_filename} | grep -v \"^\s*$\" | sort | uniq -c | sort -nr > #{@common_lines_filename}"
+    system(common_lines_command)
+  end
+
+  def generate_test_numbers
+    common_lines_command = "grep -oG '.*Test#' #{@combined_output_filename} | uniq -c | sort -n > #{@test_numbers_filename}"
     system(common_lines_command)
   end
 end
