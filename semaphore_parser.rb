@@ -1,10 +1,7 @@
 require 'nokogiri'
-require 'pry'
 require 'open-uri'
 
 class SemaphoreParser
-  attr_reader :build_number
-
   def initialize(semaphore_build_filename, folder_name)
     @semaphore_build_file = open_file(semaphore_build_filename)
 
