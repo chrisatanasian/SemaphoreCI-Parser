@@ -67,7 +67,7 @@ class SemaphoreParser
   end
 
   def thread_stats_regex
-    /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+    /\d+ (tests|runs), \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
   end
 
   def build_information
