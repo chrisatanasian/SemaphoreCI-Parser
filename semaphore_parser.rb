@@ -77,7 +77,7 @@ class SemaphoreParser
   end
 
   def add_to_totals(thread_output_line)
-    line_totals = thread_output_line.scan(/\d+/)
+    line_totals = thread_output_line.to_s.scan(/\d+/)
     @totals.each_with_index { |(key, _), i| @totals[key] += line_totals[i].to_i }
   end
 
