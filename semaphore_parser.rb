@@ -66,8 +66,16 @@ class SemaphoreParser
     write_totals_to_stats
   end
 
-  def thread_stats_regex
+  def thread_stats_regex_universal
     /\d+ (tests|runs), \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+  end
+
+  def thread_stats_regex_runs
+    /\d+ runs, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+  end
+
+  def thread_stats_regex_tests
+    /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
   end
 
   def build_information
@@ -76,8 +84,8 @@ class SemaphoreParser
      "commit sha: #{@commit_sha}\n\n"].join("\n")
   end
 
-  def add_to_totals(thread_output_line)
-    line_totals = thread_output_line.to_s.scan(/\d+/)
+  def add_to_totals(stats_line)
+    line_totals = stats_line.scan(/\d+/)
     @totals.each_with_index { |(key, _), i| @totals[key] += line_totals[i].to_i }
   end
 
@@ -94,7 +102,7 @@ class SemaphoreParser
       file.each_line do |line|
         @combined_output.write(line)
 
-        if line =~ thread_stats_regex
+        if line =~ thread_stats_regex_universal
           add_to_totals(line)
 
           @stats.write("#{alignment}#{line}")
@@ -106,8 +114,12 @@ class SemaphoreParser
 
   def add_thread_to_outputs(thread_text)
     @combined_output.write(thread_text)
-    @stats.write(thread_text.scan(thread_stats_regex).join("\n   ") + "\n")
-    thread_text.scan(thread_stats_regex).map { |thread_output_line| add_to_totals(thread_output_line) }
+
+    stats_line_array = thread_text.scan(thread_stats_regex_tests)
+    stats_line_array = thread_text.scan(thread_stats_regex_runs) if stats_line_array.empty?
+
+    @stats.write(stats_line_array.join("\n   ") + "\n")
+    stats_line_array.map { |thread_output_line| add_to_totals(thread_output_line) }
   end
 
   def generate_common_output_lines
