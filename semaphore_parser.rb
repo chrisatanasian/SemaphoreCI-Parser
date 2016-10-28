@@ -8,7 +8,7 @@ class SemaphoreParser
     @build_number = @semaphore_build_file.css(".c-build-meta_list_status.btn-group").text.scan(/\d+/).first
     @project_name = @semaphore_build_file.css(".list-inline.neutralize.c-project-headline_list").css("b").text
     @branch_name  = @semaphore_build_file.css(".c-build_branch").css("b").text
-    @commit_sha   = @semaphore_build_file.css(".u-hover-undelrine").text
+    @commit_sha   = @semaphore_build_file.css(".u-hover-undelrine").last.text
 
     @totals = { tests: 0, assertions: 0, failures: 0, errors: 0, skips: 0 }
 
