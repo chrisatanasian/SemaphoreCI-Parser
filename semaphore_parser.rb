@@ -1,4 +1,3 @@
-require 'nokogiri'
 require 'open-uri'
 require_relative 'semaphore_scraper'
 
@@ -43,15 +42,18 @@ class SemaphoreParser
     @stats.write(build_information)
 
     thread_outputs = @build_log["threads"].map do |thread|
-      thread["commands"].map do |commands|
-        prefix = "#{commands["name"]}:\n"
-        output = commands["output"]
+      command       = thread["commands"].last
+      thread_number = command["name"].scan(/\d/).join("")
+      output        = command["output"]
 
-        [prefix, output]
-      end.flatten
+      write_thread_totals_to_stats(thread_number, output)
+
+      ["THREAD #{thread_number}:\n", output]
     end.flatten.compact
 
     @combined_output.write(thread_outputs.join("\n"))
+
+    write_combined_totals_to_stats
   end
 
   def thread_stats_regex_universal
@@ -77,20 +79,21 @@ class SemaphoreParser
     @totals.each_with_index { |(key, _), i| @totals[key] += line_totals[i].to_i }
   end
 
-  def write_totals_to_stats
+  def write_thread_totals_to_stats(thread_number, thread_output)
+    stats_line_array = thread_output.scan(thread_stats_regex_tests)
+    stats_line_array = thread_output.scan(thread_stats_regex_runs) if stats_line_array.empty?
+
+    if stats_line_array.any?
+      @stats.print("#{thread_number}: ")
+      @stats.write(stats_line_array.join("\n   ") + "\n")
+      stats_line_array.map { |thread_output_line| add_to_totals(thread_output_line) }
+    end
+  end
+
+  def write_combined_totals_to_stats
     @stats.write("\n")
     @totals.each { |key, value| @stats.write("#{value} #{key}\n") }
     @stats.write("\nfailures + errors + skips: #{@totals[:failures] + @totals[:errors] + @totals[:skips]}")
-  end
-
-  def add_thread_to_outputs(thread_text)
-    @combined_output.write(thread_text)
-
-    stats_line_array = thread_text.scan(thread_stats_regex_tests)
-    stats_line_array = thread_text.scan(thread_stats_regex_runs) if stats_line_array.empty?
-
-    @stats.write(stats_line_array.join("\n   ") + "\n")
-    stats_line_array.map { |thread_output_line| add_to_totals(thread_output_line) }
   end
 
   def generate_common_output_lines
