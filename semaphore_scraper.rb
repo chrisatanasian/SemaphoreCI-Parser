@@ -1,6 +1,5 @@
 require 'open-uri'
 require 'json'
-require 'pry'
 
 class SemaphoreScraper
   API_URL     = "https://semaphoreci.com/api"
