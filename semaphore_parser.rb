@@ -1,4 +1,5 @@
 require 'open-uri'
+require 'nokogiri'
 require_relative 'semaphore_scraper'
 
 class SemaphoreParser
@@ -44,11 +45,18 @@ class SemaphoreParser
     thread_outputs = @build_log["threads"].map do |thread|
       command       = thread["commands"].last
       thread_number = command["name"].scan(/\d/).join("")
-      output        = command["output"]
+      thread_output = command["output"]
 
-      write_thread_totals_to_stats(thread_number, output)
+      download_node = Nokogiri::HTML(thread_output).css(".text-info").css("a").first
+      download_link = download_node.attributes["href"].value if download_node.respond_to?(:attributes)
 
-      ["THREAD #{thread_number}:\n", output]
+      if download_link
+        thread_output = File.read(open(download_link))
+      end
+
+      write_thread_totals_to_stats(thread_number, thread_output)
+
+      ["THREAD #{thread_number}:\n", thread_output]
     end.flatten.compact
 
     @combined_output.write(thread_outputs.join("\n"))
