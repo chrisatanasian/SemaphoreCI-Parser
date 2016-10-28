@@ -40,4 +40,3 @@ class SemaphoreScraper
     "#{build_url(hash_id, branch_id, build_number)}/log#{auth_token_param}"
   end
 end
-
