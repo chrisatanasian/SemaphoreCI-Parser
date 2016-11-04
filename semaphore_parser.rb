@@ -42,7 +42,7 @@ class SemaphoreParser
   def generate_combined_output_and_stats
     @stats.write(build_information)
 
-    thread_outputs = @build_log["threads"].map do |thread|
+    thread_outputs = sorted_threads.map do |thread|
       command       = thread["commands"].last
       thread_number = command["name"].scan(/\d/).join("")
       thread_output = command["output"]
@@ -62,6 +62,10 @@ class SemaphoreParser
     @combined_output.write(thread_outputs.join("\n"))
 
     write_combined_totals_to_stats
+  end
+
+  def sorted_threads
+    @build_log["threads"].sort_by { |thread| thread["commands"].last["name"].scan(/\d/).join("").to_i }
   end
 
   def thread_stats_regex_universal

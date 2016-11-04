@@ -8,8 +8,7 @@
 1. Run the script: `bundle exec ruby semaphore_parser.rb <semaphoreCI_auth_token> <project_hash_id> <branch_id> <build_number> (<folder>)`
 
 ### Todo:
-1. Output the threads in order
-2. Improve terminal interface
+1. Improve terminal interface
 
 
 #### How to Use (Old style)
