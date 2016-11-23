@@ -9,6 +9,14 @@ class SemaphoreScraper
     @auth_token = auth_token
   end
 
+  def projects_hash
+    JSON.parse(open(projects_url).read)
+  end
+
+  def branches_hash(hash_id)
+    JSON.parse(open(branches_url(hash_id)).read)
+  end
+
   def build_stats(hash_id, branch_id, build_number)
     JSON.parse(open(build_stats_url(hash_id, branch_id, build_number)).read)
   end
@@ -37,5 +45,13 @@ class SemaphoreScraper
 
   def build_log_url(hash_id, branch_id, build_number)
     "#{build_url(hash_id, branch_id, build_number)}/log#{auth_token_param}"
+  end
+
+  def projects_url
+    "#{base_url}/projects#{auth_token_param}"
+  end
+
+  def branches_url(hash_id)
+    "#{base_url}/projects/#{hash_id}/branches#{auth_token_param}"
   end
 end

@@ -3,10 +3,13 @@ require 'nokogiri'
 require_relative 'semaphore_scraper'
 
 class SemaphoreParser
-  def initialize(auth_token, hash_id, branch_id, build_number, folder_name)
+  def initialize(auth_token, project_name, branch_name, build_number, folder_name)
     scraper = SemaphoreScraper.new(auth_token)
 
     puts "Downloading build information..."
+
+    hash_id   ||= hash_id(scraper.projects_hash, project_name)
+    branch_id ||= branch_id(scraper.branches_hash(hash_id), branch_name)
     @build_stats = scraper.build_stats(hash_id, branch_id, build_number)
     @build_log   = scraper.build_log(hash_id, branch_id, build_number)
 
@@ -38,6 +41,14 @@ class SemaphoreParser
   end
 
   private
+
+  def hash_id(projects_hash, project_name)
+    projects_hash.detect { |project_hash| project_hash["name"] == project_name }["hash_id"]
+  end
+
+  def branch_id(branches_hash, branch_name)
+    branches_hash.detect { |branch_hash| branch_hash["name"] == branch_name }["id"]
+  end
 
   def generate_combined_output_and_stats
     @stats.write(build_information)

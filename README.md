@@ -5,7 +5,7 @@
 2. Run `bundle install`
 
 ## How to Use
-1. Run the script: `bundle exec ruby semaphore_parser.rb <semaphoreCI_auth_token> <project_hash_id> <branch_id> <build_number> (<folder>)`
+1. Run the script: `bundle exec ruby semaphore_parser.rb <semaphoreCI_auth_token> <project_name> <branch_name> <build_number> (<folder>)`
 
 ### Todo:
 1. Improve terminal interface
