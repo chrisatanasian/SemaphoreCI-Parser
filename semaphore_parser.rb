@@ -79,16 +79,16 @@ class SemaphoreParser
     @build_log["threads"].sort_by { |thread| thread["commands"].last["name"].scan(/\d/).join("").to_i }
   end
 
-  def thread_stats_regex_universal
-    /\d+ (tests|runs), \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
-  end
-
   def thread_stats_regex_runs
     /\d+ runs, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
   end
 
   def thread_stats_regex_tests
     /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ skips/
+  end
+
+  def thread_stats_regex_omissions
+    /\d+ tests, \d+ assertions, \d+ failures, \d+ errors, \d+ pendings, \d+ omissions, \d+ notifications/
   end
 
   def build_information
@@ -105,6 +105,7 @@ class SemaphoreParser
   def write_thread_totals_to_stats(thread_number, thread_output)
     stats_line_array = thread_output.scan(thread_stats_regex_tests)
     stats_line_array = thread_output.scan(thread_stats_regex_runs) if stats_line_array.empty?
+    stats_line_array = thread_output.scan(thread_stats_regex_omissions) if stats_line_array.empty?
 
     if stats_line_array.any?
       @stats.print("#{thread_number}: ")
